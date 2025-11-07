@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PMB Reflections Checker</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #0a0f1a 0%, #1a1f3a 100%);
+      color: #e8edf3;
+      font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 32px;
+      padding: 24px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+    .card {
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 20px;
+      backdrop-filter: blur(10px);
+    }
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    input {
+      flex: 1;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(15, 23, 42, 0.8);
+      color: #e8edf3;
+      font-size: 15px;
+      transition: all 0.3s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    button {
+      padding: 14px 32px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      font-size: 15px;
+    }
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .error {
+      color: #ef4444;
+      font-weight: 600;
+      margin: 12px 0;
+      padding: 12px;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 8px;
+      display: none;
+    }
+    .loading {
+      color: #3b82f6;
+      margin: 12px 0;
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(59, 130, 246, 0.3);
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .balance-card {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .balance-label {
+      font-size: 13px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .balance-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .reflections-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .token-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .token-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0,0,0,0.3);
+    }
+    .token-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .token-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981, #3b82f6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .token-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .token-address {
+      font-size: 11px;
+      color: #64748b;
+      font-family: monospace;
+      margin-top: 4px;
+    }
+    .reflection-amount {
+      font-size: 24px;
+      font-weight: 700;
+      color: #10b981;
+      margin-top: 12px;
+    }
+    .reflection-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .info-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .warning-box {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #fbbf24;
+    }
+    @media (max-width: 640px) {
+      h1 { font-size: 24px; }
+      .input-group { flex-direction: column; }
+      .reflections-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>PMB Reflections Checker</h1>
+      <div class="subtitle">Check your PCOCK & PHEN rewards on PulseChain</div>
+      <div class="subtitle" style="margin-top: 4px; font-size: 12px;">Enter any wallet address • No connection required</div>
+    </div>
+
+    <div class="card">
+      <div class="input-group">
+        <input 
+          id="walletInput" 
+          type="text" 
+          placeholder="Enter wallet address (0x...)" 
+          autocomplete="off"
+        />
+        <button id="checkBtn">Check Rewards</button>
+      </div>
+
+      <div id="error" class="error"></div>
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <span>Querying PulseChain...</span>
+      </div>
+
+      <div id="results" style="display: none;">
+        <div class="balance-card">
+          <div class="balance-label">Your PMB Holdings</div>
+          <div class="balance-value" id="pmbBalance">—</div>
+        </div>
+
+        <h3 style="margin: 0 0 12px; color: #e8edf3;">Pending Reflections</h3>
+        <div class="reflections-grid" id="reflectionsGrid"></div>
+
+        <div class="info-box">
+          💡 <strong>How to claim:</strong> Reflections are automatically distributed when you sell PMB or you can call the <code>claimYield()</code> function manually (requires gas).
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (async function() {
+    const RPCS = [
+      "https://rpc.pulsechain.com",
+      "https://pulsechain-rpc.publicnode.com"
+    ];
+    const NETWORK = { chainId: 369, name: "PulseChain" };
+    const PMB_CONTRACT = "0x2f9a1a04d5894494616ec170828e32e2bc04af63";
+    
+    const YIELD_TOKENS = [
+      {
+        address: "0xc10a4ed9b4042222d69ff0b374eddd47ed90fc1f",
+        name: "PCOCK",
+        color: "#3b82f6"
+      },
+      {
+        address: "0xfde3255fb043ea55f9d8635c5e7ff18770a6a810",
+        name: "PHEN",
+        color: "#8b5cf6"
+      }
+    ];
+
+    const ERC20_ABI = [
+      "function balanceOf(address) view returns (uint256)",
+      "function decimals() view returns (uint8)",
+      "function symbol() view returns (string)"
+    ];
+
+    const $ = id => document.getElementById(id);
+    const $wallet = $("walletInput");
+    const $check = $("checkBtn");
+    const $error = $("error");
+    const $loading = $("loading");
+    const $results = $("results");
+    const $pmbBalance = $("pmbBalance");
+    const $grid = $("reflectionsGrid");
+
+    function formatNumber(num, decimals = 2) {
+      const parts = num.toFixed(decimals).split(".");
+      parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return parts.join(".");
+    }
+
+    async function safeCall(promise, fallback = null) {
+      try {
+        return await promise;
+      } catch (error) {
+        console.warn("Call failed:", error.message);
+        return fallback;
+      }
+    }
+
+    async function getProvider() {
+      for (const rpc of RPCS) {
+        try {
+          const provider = new ethers.providers.JsonRpcProvider(rpc, NETWORK);
+          await provider.getBlockNumber();
+          console.log("Connected to:", rpc);
+          return provider;
+        } catch (e) {
+          console.warn(`RPC ${rpc} failed:`, e.message);
+        }
+      }
+      throw new Error("All RPCs failed. Please try again later.");
+    }
+
+    async function checkRewards() {
+      $error.textContent = "";
+      $error.style.display = "none";
+      $loading.style.display = "flex";
+      $results.style.display = "none";
+      $check.disabled = true;
+      $grid.innerHTML = "";
+
+      const address = $wallet.value.trim();
+      
+      if (!ethers.utils.isAddress(address)) {
+        $error.textContent = "Please enter a valid wallet address";
+        $error.style.display = "block";
+        $loading.style.display = "none";
+        $check.disabled = false;
+        return;
+      }
+
+      try {
+        const provider = await getProvider();
+        
+        // Get PMB balance
+        const pmbContract = new ethers.Contract(PMB_CONTRACT, ERC20_ABI, provider);
+        const [balance, decimals, symbol] = await Promise.all([
+          safeCall(pmbContract.balanceOf(address), ethers.BigNumber.from(0)),
+          safeCall(pmbContract.decimals(), 18),
+          safeCall(pmbContract.symbol(), "PMB")
+        ]);
+
+        const balanceFormatted = parseFloat(ethers.utils.formatUnits(balance, decimals));
+        $pmbBalance.textContent = `${formatNumber(balanceFormatted, 4)} ${symbol}`;
+
+        // Check each yield token individually
+        let hasReflections = false;
+        
+        for (const token of YIELD_TOKENS) {
+          try {
+            const tokenContract = new ethers.Contract(token.address, ERC20_ABI, provider);
+            
+            const [tokenBalance, tokenDecimals, tokenSymbol] = await Promise.all([
+              safeCall(tokenContract.balanceOf(address), ethers.BigNumber.from(0)),
+              safeCall(tokenContract.decimals(), 18),
+              safeCall(tokenContract.symbol(), token.name)
+            ]);
+
+            const balanceFormatted = parseFloat(ethers.utils.formatUnits(tokenBalance, tokenDecimals));
+
+            const card = document.createElement("div");
+            card.className = "token-card";
+            card.innerHTML = `
+              <div class="token-header">
+                <div class="token-icon" style="background: linear-gradient(135deg, ${token.color}, #10b981)">
+                  ${token.name[0]}
+                </div>
+                <div>
+                  <div class="token-name">${token.name}</div>
+                  <div class="token-address">${token.address.slice(0, 10)}...${token.address.slice(-8)}</div>
+                </div>
+              </div>
+              <div class="reflection-amount">${formatNumber(balanceFormatted, 6)} ${tokenSymbol}</div>
+              <div class="reflection-label">Current Balance (may include unclaimed reflections)</div>
+            `;
+            $grid.appendChild(card);
+            hasReflections = true;
+          } catch (tokenError) {
+            console.error(`Failed to fetch ${token.name}:`, tokenError);
+          }
+        }
+
+        if (!hasReflections) {
+          $grid.innerHTML = '<div class="warning-box">⚠️ Unable to fetch reflection data. The contract may not support the expected functions or there may be an RPC issue.</div>';
+        }
+
+        $results.style.display = "block";
+
+      } catch (error) {
+        console.error(error);
+        $error.textContent = `Error: ${error.message}`;
+        $error.style.display = "block";
+      } finally {
+        $loading.style.display = "none";
+        $check.disabled = false;
+      }
+    }
+
+    $check.addEventListener("click", checkRewards);
+    $wallet.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") checkRewards();
+    });
+  })();
+  </script>
+</body>
+</html>
