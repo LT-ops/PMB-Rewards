@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>PMB Reflections Checker</title>
+  <title>PMT & PMB Rewards Tracker</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -90,6 +90,20 @@
       cursor: not-allowed;
       transform: none;
     }
+    .button-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .secondary-btn {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      font-size: 14px;
+      padding: 10px 20px;
+    }
+    .share-btn {
+      background: linear-gradient(135deg, #10b981, #059669);
+    }
     .error {
       color: #ef4444;
       font-weight: 600;
@@ -103,8 +117,19 @@
       color: #3b82f6;
       margin: 12px 0;
       display: none;
+    }
+    .loading-step {
+      display: flex;
       align-items: center;
       gap: 8px;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+    .loading-step.complete {
+      color: #10b981;
+    }
+    .loading-step.active {
+      color: #3b82f6;
     }
     .spinner {
       width: 16px;
@@ -117,12 +142,37 @@
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    .token-section {
+      margin-bottom: 32px;
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 24px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.05));
+    }
+    .token-section h2 {
+      margin: 0 0 20px;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .token-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 20px;
+    }
     .balance-card {
       background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(139, 92, 246, 0.1));
       border: 1px solid rgba(59, 130, 246, 0.3);
       border-radius: 12px;
       padding: 20px;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
     }
     .balance-label {
       font-size: 13px;
@@ -136,12 +186,39 @@
       font-weight: 700;
       color: #fff;
     }
+    .history-badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-top: 8px;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .history-badge.negative {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
     .aggregate-card {
       background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1));
       border: 1px solid rgba(139, 92, 246, 0.3);
       border-radius: 12px;
       padding: 20px;
+      margin-bottom: 16px;
+    }
+    .apy-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1));
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      padding: 20px;
       margin-bottom: 24px;
+    }
+    .apy-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #10b981;
     }
     .reflections-grid {
       display: grid;
@@ -149,14 +226,14 @@
       gap: 16px;
       margin-top: 20px;
     }
-    .token-card {
+    .reward-card {
       background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(59, 130, 246, 0.1));
       border: 1px solid rgba(16, 185, 129, 0.3);
       border-radius: 12px;
       padding: 20px;
       transition: transform 0.2s, box-shadow 0.2s;
     }
-    .token-card:hover {
+    .reward-card:hover {
       transform: translateY(-4px);
       box-shadow: 0 12px 24px rgba(0,0,0,0.3);
     }
@@ -204,6 +281,14 @@
       color: #3b82f6;
       margin-top: 4px;
     }
+    .price-status {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .price-warning {
+      color: #f59e0b;
+    }
     .info-box {
       background: rgba(59, 130, 246, 0.1);
       border: 1px solid rgba(59, 130, 246, 0.3);
@@ -227,18 +312,35 @@
       color: #64748b;
       margin-top: 8px;
     }
+    .refresh-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+    }
+    .auto-refresh {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     @media (max-width: 640px) {
       h1 { font-size: 24px; }
       .input-group { flex-direction: column; }
       .reflections-grid { grid-template-columns: 1fr; }
+      .button-group { flex-direction: column; }
+      .button-group button { width: 100%; }
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <h1>PMB Reflections Checker</h1>
-      <div class="subtitle">Check your PCOCK & PHEN rewards on PulseChain</div>
+      <h1>PMT & PMB Rewards Tracker</h1>
+      <div class="subtitle">Track your rewards across both tokens on PulseChain</div>
       <div class="subtitle" style="margin-top: 4px; font-size: 12px;">Enter any wallet address • No connection required</div>
     </div>
 
@@ -250,34 +352,108 @@
           placeholder="Enter wallet address (0x...)" 
           autocomplete="off"
         />
-        <button id="checkBtn">Check Rewards</button>
+        <button id="checkBtn">Check All Rewards</button>
+      </div>
+
+      <div id="buttonGroup" class="button-group" style="display: none;">
+        <button id="refreshBtn" class="secondary-btn">🔄 Refresh Prices</button>
+        <button id="shareBtn" class="secondary-btn share-btn">🔗 Share Results</button>
       </div>
 
       <div id="error" class="error"></div>
-      <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <span>Querying PulseChain...</span>
+      <div id="loading" class="loading"></div>
+    </div>
+
+    <!-- PMT Section -->
+    <div id="pmtSection" style="display: none;" class="token-section">
+      <h2>
+        <div class="token-logo">💎</div>
+        <div>
+          <div>PMT Token</div>
+          <div style="font-size: 14px; font-weight: 400; color: #94a3b8; margin-top: 4px;">WBTC Rewards</div>
+        </div>
+      </h2>
+
+      <div class="balance-card">
+        <div class="balance-label">Your PMT Holdings</div>
+        <div class="balance-value" id="pmtBalance">—</div>
+        <div id="pmtHistory"></div>
       </div>
 
-      <div id="results" style="display: none;">
-        <div class="balance-card">
-          <div class="balance-label">Your PMB Holdings</div>
-          <div class="balance-value" id="pmbBalance">—</div>
+      <div id="pmtApySection" style="display: none;">
+        <div class="apy-card">
+          <div class="balance-label">Estimated APY</div>
+          <div class="apy-value" id="pmtApy">—</div>
+          <div class="status-text" id="pmtApyNote">Based on your 30-day rewards average</div>
         </div>
+      </div>
 
-        <div id="aggregateSection" style="display: none;">
-          <div class="aggregate-card">
-            <div class="balance-label">Aggregate Pending Reflections Value</div>
-            <div class="balance-value" id="aggregateReflections">—</div>
-            <div class="status-text">Estimated total in USD across all yield tokens (market prices may vary)</div>
-          </div>
+      <div id="pmtAggregateSection" style="display: none;">
+        <div class="aggregate-card">
+          <div class="balance-label">Total PMT Rewards Value</div>
+          <div class="balance-value" id="pmtAggregateReflections">—</div>
+          <div class="status-text">Estimated total in USD (market prices may vary)</div>
         </div>
+      </div>
 
-        <h3 style="margin: 0 0 12px; color: #e8edf3;">Pending Reflections by Token</h3>
-        <div class="reflections-grid" id="reflectionsGrid"></div>
+      <h3 style="margin: 0 0 12px; color: #e8edf3;">Pending Rewards</h3>
+      <div class="reflections-grid" id="pmtRewardsGrid"></div>
 
-        <div class="info-box">
-          💡 <strong>How to claim:</strong> Reflections are automatically distributed when you sell PMB. You can also try sending 0 PMB to yourself to trigger distribution, or call <code>claimYield()</code> manually (requires gas). If pending is 0, rewards may have been auto-claimed to your wallet.
+      <div class="info-box">
+        💡 <strong>How to claim:</strong> Rewards are automatically distributed when you sell PMT. You can also try sending 0 PMT to yourself to trigger distribution, or call <code>claimYield()</code> manually (requires gas). If pending is 0, rewards may have been auto-claimed to your wallet.
+      </div>
+
+      <div class="refresh-info">
+        <div id="pmtLastUpdate">Last updated: —</div>
+        <div class="auto-refresh" id="pmtAutoRefresh" style="display: none;">
+          Auto-refresh in: <span id="pmtCountdown">60</span>s
+        </div>
+      </div>
+    </div>
+
+    <!-- PMB Section -->
+    <div id="pmbSection" style="display: none;" class="token-section">
+      <h2>
+        <div class="token-logo" style="background: linear-gradient(135deg, #10b981, #3b82f6);">🔷</div>
+        <div>
+          <div>PMB Token</div>
+          <div style="font-size: 14px; font-weight: 400; color: #94a3b8; margin-top: 4px;">PCOCK & PHEN Rewards</div>
+        </div>
+      </h2>
+
+      <div class="balance-card">
+        <div class="balance-label">Your PMB Holdings</div>
+        <div class="balance-value" id="pmbBalance">—</div>
+        <div id="pmbHistory"></div>
+      </div>
+
+      <div id="pmbApySection" style="display: none;">
+        <div class="apy-card">
+          <div class="balance-label">Estimated APY</div>
+          <div class="apy-value" id="pmbApy">—</div>
+          <div class="status-text" id="pmbApyNote">Based on your 30-day rewards average</div>
+        </div>
+      </div>
+
+      <div id="pmbAggregateSection" style="display: none;">
+        <div class="aggregate-card">
+          <div class="balance-label">Total PMB Reflections Value</div>
+          <div class="balance-value" id="pmbAggregateReflections">—</div>
+          <div class="status-text">Estimated total in USD across all yield tokens (market prices may vary)</div>
+        </div>
+      </div>
+
+      <h3 style="margin: 0 0 12px; color: #e8edf3;">Pending Reflections by Token</h3>
+      <div class="reflections-grid" id="pmbReflectionsGrid"></div>
+
+      <div class="info-box">
+        💡 <strong>How to claim:</strong> Reflections are automatically distributed when you sell PMB. You can also try sending 0 PMB to yourself to trigger distribution, or call <code>claimYield()</code> manually (requires gas). If pending is 0, rewards may have been auto-claimed to your wallet.
+      </div>
+
+      <div class="refresh-info">
+        <div id="pmbLastUpdate">Last updated: —</div>
+        <div class="auto-refresh" id="pmbAutoRefresh" style="display: none;">
+          Auto-refresh in: <span id="pmbCountdown">60</span>s
         </div>
       </div>
     </div>
@@ -292,9 +468,20 @@
       "https://rpc.mainnet.pulsechain.com"
     ];
     const NETWORK = { chainId: 369, name: "PulseChain" };
+    
+    const PMT_CONTRACT = "0x56d554364071e86dd9520ebb3a96dea9cacd4a60";
     const PMB_CONTRACT = "0x2f9a1a04d5894494616ec170828e32e2bc04af63";
     
-    const KNOWN_YIELD_TOKENS = [
+    const PMT_YIELD_TOKENS = [
+      {
+        index: 0,
+        addr: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
+        name: "WBTC",
+        color: "#f7931a"
+      }
+    ];
+
+    const PMB_YIELD_TOKENS = [
       {
         index: 0,
         addr: "0xc10a4ed9b4042222d69ff0b374eddd47ed90fc1f",
@@ -309,7 +496,7 @@
       }
     ];
 
-    const PMB_ABI = [
+    const TOKEN_ABI = [
       "function balanceOf(address account) view returns (uint256)",
       "function symbol() view returns (string)",
       "function decimals() view returns (uint8)",
@@ -323,21 +510,27 @@
     ];
 
     const $ = id => document.getElementById(id);
-    const $wallet = $("walletInput");
-    const $check = $("checkBtn");
-    const $error = $("error");
-    const $loading = $("loading");
-    const $results = $("results");
-    const $pmbBalance = $("pmbBalance");
-    const $grid = $("reflectionsGrid");
-    const $aggregateSection = $("aggregateSection");
-    const $aggregateReflections = $("aggregateReflections");
+    
+    let currentAddress = '';
+    let priceCache = {};
+    let autoRefreshInterval = null;
+    let countdownInterval = null;
+    let countdown = 60;
 
     function formatNumber(num, decimals = 2) {
       if (num === 0) return "0.00";
       const parts = num.toFixed(decimals).split(".");
       parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
       return parts.join(".");
+    }
+
+    function formatTimeAgo(timestamp) {
+      const seconds = Math.floor((Date.now() - timestamp) / 1000);
+      if (seconds < 60) return `${seconds}s ago`;
+      const minutes = Math.floor(seconds / 60);
+      if (minutes < 60) return `${minutes}m ago`;
+      const hours = Math.floor(minutes / 60);
+      return `${hours}h ago`;
     }
 
     async function safeCall(promise, fallback = null) {
@@ -363,128 +556,483 @@
       throw new Error("All RPCs failed. Please try again later.");
     }
 
-    async function getDexPrice(tokenAddr) {
+    async function getDexPrice(tokenAddr, useCache = true) {
+      const cacheKey = tokenAddr.toLowerCase();
+      const now = Date.now();
+      
+      if (useCache && priceCache[cacheKey] && (now - priceCache[cacheKey].timestamp < 5 * 60 * 1000)) {
+        return priceCache[cacheKey];
+      }
+
       try {
         const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddr}`);
         const data = await response.json();
         if (data.pairs && data.pairs[0]) {
-          return parseFloat(data.pairs[0].priceUsd) || 0;
+          const price = parseFloat(data.pairs[0].priceUsd) || 0;
+          priceCache[cacheKey] = {
+            price,
+            timestamp: now,
+            source: 'dexscreener'
+          };
+          return priceCache[cacheKey];
         }
       } catch (e) {
         console.warn('Failed to fetch DEX price for ' + tokenAddr + ':', e);
       }
-      return 0;
-    }
-
-    async function checkRewards() {
-      $error.textContent = "";
-      $error.style.display = "none";
-      $loading.style.display = "flex";
-      $results.style.display = "none";
-      $check.disabled = true;
-      $grid.innerHTML = "";
-      $aggregateSection.style.display = "none";
-
-      const address = $wallet.value.trim();
-      
-      if (!ethers.utils.isAddress(address)) {
-        $error.textContent = "Please enter a valid wallet address";
-        $error.style.display = "block";
-        $loading.style.display = "none";
-        $check.disabled = false;
-        return;
-      }
 
       try {
-        const provider = await getProvider();
-        const pmbContract = new ethers.Contract(PMB_CONTRACT, PMB_ABI, provider);
+        const response = await fetch('https://api.9mm.pro/prices');
+        const data = await response.json();
+        const tokenPrice = data[tokenAddr.toLowerCase()];
+        if (tokenPrice) {
+          priceCache[cacheKey] = {
+            price: parseFloat(tokenPrice),
+            timestamp: now,
+            source: '9mm'
+          };
+          return priceCache[cacheKey];
+        }
+      } catch (e) {
+        console.warn('Failed to fetch 9mm price for ' + tokenAddr + ':', e);
+      }
+      
+      if (priceCache[cacheKey]) {
+        priceCache[cacheKey].stale = true;
+        return priceCache[cacheKey];
+      }
+      
+      return { price: 0, timestamp: now, source: 'unavailable' };
+    }
+
+    function saveHistory(address, tokenSymbol, balance, rewards) {
+      const key = `history_${address.toLowerCase()}_${tokenSymbol}`;
+      const history = JSON.parse(localStorage.getItem(key) || '[]');
+      
+      history.push({
+        timestamp: Date.now(),
+        balance,
+        rewards
+      });
+      
+      if (history.length > 30) history.shift();
+      
+      localStorage.setItem(key, JSON.stringify(history));
+    }
+
+    function getHistory(address, tokenSymbol) {
+      const key = `history_${address.toLowerCase()}_${tokenSymbol}`;
+      return JSON.parse(localStorage.getItem(key) || '[]');
+    }
+
+    function calculateAPY(address, tokenSymbol, currentBalance, rewardsUsd) {
+      const history = getHistory(address, tokenSymbol);
+      if (history.length < 2) return null;
+
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      const oldEntries = history.filter(h => h.timestamp >= thirtyDaysAgo);
+      
+      if (oldEntries.length === 0) return null;
+
+      let totalRewardsUsd = 0;
+      let totalDays = 0;
+
+      for (let i = 1; i < history.length; i++) {
+        const current = history[i];
+        const previous = history[i-1];
+        const timeDiff = (current.timestamp - previous.timestamp) / (1000 * 60 * 60 * 24);
+        if (timeDiff > 0) {
+          const dailyRewards = (current.rewards - previous.rewards) / timeDiff;
+          totalRewardsUsd += dailyRewards;
+          totalDays += timeDiff;
+        }
+      }
+
+      if (totalDays === 0) return null;
+      
+      const avgDailyRewards = totalRewardsUsd / totalDays;
+      const yearlyRewards = avgDailyRewards * 365;
+      
+      if (currentBalance === 0) return null;
+      
+      const apy = (yearlyRewards / currentBalance) * 100;
+      return Math.max(0, apy);
+    }
+
+    function showHistory(address, tokenSymbol, currentBalance, historyEl) {
+      const history = getHistory(address, tokenSymbol);
+      if (history.length < 2) return;
+
+      const previous = history[history.length - 2];
+      const change = currentBalance - previous.balance;
+      const percentChange = previous.balance > 0 ? (change / previous.balance) * 100 : 0;
+
+      if (Math.abs(change) > 0.0001) {
+        const badge = document.createElement('div');
+        badge.className = change > 0 ? 'history-badge' : 'history-badge negative';
+        badge.textContent = `${change > 0 ? '↑' : '↓'} ${Math.abs(percentChange).toFixed(2)}% since last check`;
+        historyEl.appendChild(badge);
+      }
+    }
+
+    function updateLoadingStep(step, status) {
+      const loading = $('loading');
+      const stepId = `step-${step}`;
+      let stepEl = document.getElementById(stepId);
+      
+      if (!stepEl) {
+        stepEl = document.createElement('div');
+        stepEl.id = stepId;
+        stepEl.className = 'loading-step';
+        loading.appendChild(stepEl);
+      }
+
+      if (status === 'complete') {
+        stepEl.className = 'loading-step complete';
+        stepEl.innerHTML = `✓ ${step}`;
+      } else if (status === 'active') {
+        stepEl.className = 'loading-step active';
+        stepEl.innerHTML = `<div class="spinner"></div> ${step}`;
+      } else {
+        stepEl.className = 'loading-step';
+        stepEl.innerHTML = `⏳ ${step}`;
+      }
+    }
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      
+      countdown = 60;
+      $('pmtAutoRefresh').style.display = 'flex';
+      $('pmbAutoRefresh').style.display = 'flex';
+      
+      countdownInterval = setInterval(() => {
+        countdown--;
+        $('pmtCountdown').textContent = countdown;
+        $('pmbCountdown').textContent = countdown;
         
-        // Get PMB balance
+        if (countdown <= 0) {
+          refreshPrices();
+          countdown = 60;
+        }
+      }, 1000);
+      
+      autoRefreshInterval = setInterval(() => {
+        refreshPrices();
+      }, 60000);
+    }
+
+    function stopAutoRefresh() {
+      if (countdownInterval) {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+      }
+      if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+      }
+      $('pmtAutoRefresh').style.display = 'none';
+      $('pmbAutoRefresh').style.display = 'none';
+    }
+
+    async function refreshPrices() {
+      if (!currentAddress) return;
+      
+      $('refreshBtn').disabled = true;
+      $('refreshBtn').textContent = 'Refreshing...';
+      
+      try {
+        const provider = await getProvider();
+        
+        if ($('pmtSection').style.display !== 'none') {
+          await checkTokenRewards(provider, currentAddress, PMT_CONTRACT, PMT_YIELD_TOKENS, 
+            $('pmtBalance'), $('pmtAggregateReflections'), $('pmtAggregateSection'), 
+            $('pmtRewardsGrid'), $('pmtApy'), $('pmtApySection'), $('pmtApyNote'), 
+            $('pmtHistory'), $('pmtLastUpdate'), 'PMT', true);
+        }
+        
+        if ($('pmbSection').style.display !== 'none') {
+          await checkTokenRewards(provider, currentAddress, PMB_CONTRACT, PMB_YIELD_TOKENS,
+            $('pmbBalance'), $('pmbAggregateReflections'), $('pmbAggregateSection'),
+            $('pmbReflectionsGrid'), $('pmbApy'), $('pmbApySection'), $('pmbApyNote'),
+            $('pmbHistory'), $('pmbLastUpdate'), 'PMB', true);
+        }
+        
+        const now = new Date();
+        $('pmtLastUpdate').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+        $('pmbLastUpdate').textContent = `Last updated: ${now.toLocaleTimeString()}`;
+        
+      } catch (error) {
+        showError('Failed to refresh prices: ' + error.message);
+      } finally {
+        $('refreshBtn').disabled = false;
+        $('refreshBtn').textContent = '🔄 Refresh Prices';
+      }
+    }
+
+    function shareResults() {
+      const url = new URL(window.location.href);
+      url.searchParams.set('address', currentAddress);
+      
+      navigator.clipboard.writeText(url.toString()).then(() => {
+        const originalText = $('shareBtn').textContent;
+        $('shareBtn').textContent = '✅ Copied!';
+        setTimeout(() => {
+          $('shareBtn').textContent = originalText;
+        }, 2000);
+      }).catch(() => {
+        showError('Failed to copy to clipboard');
+      });
+    }
+
+    function showError(message) {
+      const errorEl = $('error');
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+      setTimeout(() => {
+        errorEl.style.display = 'none';
+      }, 5000);
+    }
+
+    async function checkTokenRewards(provider, address, contractAddr, yieldTokens, balanceEl, aggregateEl, aggregateSectionEl, gridEl, apyEl, apySectionEl, apyNoteEl, historyEl, lastUpdateEl, tokenSymbol, refreshPrices = false) {
+      try {
+        const contract = new ethers.Contract(contractAddr, TOKEN_ABI, provider);
+        
         const [balance, decimals, symbol] = await Promise.all([
-          safeCall(pmbContract.balanceOf(address), ethers.BigNumber.from(0)),
-          safeCall(pmbContract.decimals(), 18),
-          safeCall(pmbContract.symbol(), "PMB")
+          safeCall(contract.balanceOf(address), ethers.BigNumber.from(0)),
+          safeCall(contract.decimals(), 18),
+          safeCall(contract.symbol(), tokenSymbol)
         ]);
 
         const balanceFormatted = parseFloat(ethers.utils.formatUnits(balance, decimals));
-        $pmbBalance.textContent = `${formatNumber(balanceFormatted, 4)} ${symbol}`;
+        balanceEl.textContent = `${formatNumber(balanceFormatted, 4)} ${symbol}`;
 
-        // Check if excluded from reflections
-        const isExcluded = await safeCall(pmbContract.isExcludedFromReflections(address), null);
+        historyEl.innerHTML = '';
+        showHistory(address, symbol, balanceFormatted, historyEl);
+
+        const isExcluded = await safeCall(contract.isExcludedFromReflections(address), false);
         if (isExcluded === true) {
-          $grid.innerHTML = '<div class="warning-box">⚠️ This address is excluded from receiving reflections.</div>';
-          $results.style.display = "block";
-          $loading.style.display = "none";
-          $check.disabled = false;
+          gridEl.innerHTML = '<div class="warning-box">⚠️ This address is excluded from receiving reflections.</div>';
+          aggregateSectionEl.style.display = 'none';
+          apySectionEl.style.display = 'none';
           return;
         }
 
         let totalUsd = 0;
+        gridEl.innerHTML = '';
 
-        // Fetch and display known yield tokens
-        for (let j = 0; j < KNOWN_YIELD_TOKENS.length; j++) {
-          const item = KNOWN_YIELD_TOKENS[j];
+        if (!yieldTokens || yieldTokens.length === 0) {
+          gridEl.innerHTML = '<div class="info-box">No yield tokens configured for this contract.</div>';
+          aggregateSectionEl.style.display = 'none';
+          apySectionEl.style.display = 'none';
+          return;
+        }
+
+        // Process each yield token - FIXED: Only create one card per token
+        for (let j = 0; j < yieldTokens.length; j++) {
+          const item = yieldTokens[j];
+          
+          if (!item || !item.addr) {
+            console.warn('Invalid yield token at index:', j);
+            continue;
+          }
+          
           const tokenAddr = item.addr.toLowerCase();
-          const tokenInfo = item;
 
           try {
-            const pending = await pmbContract.pendingYields(address, item.index);
-            console.log(`Token ${item.index} (${tokenInfo.name}) pending:`, pending.toString());
+            const pending = await contract.pendingYields(address, item.index);
+            
+            if (!pending) {
+              console.warn('No pending yields for', item.name);
+              continue;
+            }
 
             const tokenContract = new ethers.Contract(tokenAddr, ERC20_ABI, provider);
             const [tokenDecimals, tokenSymbol] = await Promise.all([
               safeCall(tokenContract.decimals(), 18),
-              safeCall(tokenContract.symbol(), tokenInfo.name)
+              safeCall(tokenContract.symbol(), item.name)
             ]);
 
             const pendingFormatted = parseFloat(ethers.utils.formatUnits(pending, tokenDecimals));
-            const price = await getDexPrice(tokenAddr);
-            const usdValue = pendingFormatted * price;
-            totalUsd += usdValue;
+            
+            // Only create card if we have pending rewards
+            if (pendingFormatted > 0 || true) { // Show even if 0 for debugging
+              const priceData = await getDexPrice(tokenAddr, !refreshPrices);
+              const usdValue = pendingFormatted * priceData.price;
+              totalUsd += usdValue;
 
-            const card = document.createElement("div");
-            card.className = "token-card";
-            card.innerHTML = `
-              <div class="token-header">
-                <div class="token-icon" style="background: linear-gradient(135deg, ${tokenInfo.color}, #10b981)">
-                  ${tokenInfo.name[0]}
-                </div>
-                <div>
-                  <div class="token-name">${tokenInfo.name}</div>
-                  <div class="token-address">${tokenAddr.slice(0, 10)}...${tokenAddr.slice(-8)}</div>
-                </div>
-              </div>
-              <div class="reflection-amount">${formatNumber(pendingFormatted, 6)} ${tokenSymbol}</div>
-              <div class="reflection-label">Pending (Unclaimed) Reflections</div>
-              <div class="usd-value">≈ $${formatNumber(usdValue, 2)} USD ${price === 0 ? '(Price fetch failed)' : ''}</div>
-            `;
-            $grid.appendChild(card);
-          } catch (tokenError) {
-            console.error(`Failed to get pending for token ${item.index}:`, tokenError.message);
+              const card = document.createElement("div");
+              card.className = "reward-card";
+              
+              let priceStatus = '';
+              if (priceData.stale) {
+                priceStatus = '<div class="price-status price-warning">⚠️ Price data is ' + formatTimeAgo(priceData.timestamp) + '</div>';
+              } else if (priceData.source === 'unavailable') {
+                priceStatus = '<div class="price-status price-warning">⚠️ Price unavailable</div>';
+              } else {
+                priceStatus = '<div class="price-status">Updated ' + formatTimeAgo(priceData.timestamp) + '</div>';
+              }
+
+              card.innerHTML = 
+                '<div class="token-header">' +
+                  '<div class="token-icon" style="background: ' + (item.color || '#3b82f6') + ';">' + (item.name || 'Token').charAt(0) + '</div>' +
+                  '<div>' +
+                    '<div class="token-name">' + (item.name || 'Unknown') + '</div>' +
+                    '<div class="token-address">' + tokenAddr.slice(0, 6) + '...' + tokenAddr.slice(-4) + '</div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="reflection-amount">' + formatNumber(pendingFormatted, 6) + '</div>' +
+                '<div class="reflection-label">Pending ' + (item.name || 'Token') + '</div>' +
+                '<div class="usd-value">≈ $' + formatNumber(usdValue, 2) + '</div>' +
+                priceStatus;
+              
+              gridEl.appendChild(card);
+            }
+
+          } catch (error) {
+            console.warn(`Failed to get rewards for ${item.name}:`, error);
+            const errorCard = document.createElement("div");
+            errorCard.className = "reward-card";
+            errorCard.innerHTML = 
+              '<div class="token-header">' +
+                '<div class="token-icon" style="background: #ef4444;">!</div>' +
+                '<div>' +
+                  '<div class="token-name">' + (item.name || 'Unknown') + '</div>' +
+                  '<div class="token-address">Error loading</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="reflection-amount" style="color: #ef4444;">Error</div>' +
+              '<div class="reflection-label">Failed to load rewards</div>';
+            gridEl.appendChild(errorCard);
           }
         }
 
-        if (totalUsd > 0) {
-          $aggregateReflections.textContent = `≈ $${formatNumber(totalUsd, 2)} USD`;
-          $aggregateSection.style.display = "block";
+        if (gridEl.children.length > 0) {
+          aggregateEl.textContent = `$${formatNumber(totalUsd, 2)}`;
+          aggregateSectionEl.style.display = 'block';
+          saveHistory(address, symbol, balanceFormatted, totalUsd);
+        } else {
+          aggregateSectionEl.style.display = 'none';
+          if (balanceFormatted > 0) {
+            gridEl.innerHTML = '<div class="info-box">No pending rewards found. Rewards may have been auto-claimed or are not yet available.</div>';
+          }
         }
 
-        $results.style.display = "block";
+        if (balanceFormatted > 0) {
+          const apy = calculateAPY(address, symbol, balanceFormatted, totalUsd);
+          if (apy !== null && apy > 0) {
+            apyEl.textContent = `${formatNumber(apy, 1)}%`;
+            apyNoteEl.textContent = 'Based on your 30-day rewards average';
+            apySectionEl.style.display = 'block';
+          } else {
+            const dailyEstimate = totalUsd;
+            const yearlyEstimate = dailyEstimate * 365;
+            const snapshotApy = balanceFormatted > 0 ? (yearlyEstimate / balanceFormatted) * 100 : 0;
+            if (snapshotApy > 0) {
+              apyEl.textContent = `${formatNumber(snapshotApy, 1)}%`;
+              apyNoteEl.textContent = 'Based on current rewards snapshot';
+              apySectionEl.style.display = 'block';
+            } else {
+              apySectionEl.style.display = 'none';
+            }
+          }
+        } else {
+          apySectionEl.style.display = 'none';
+        }
+
+        const now = new Date();
+        lastUpdateEl.textContent = `Last updated: ${now.toLocaleTimeString()}`;
 
       } catch (error) {
-        console.error(error);
-        $error.textContent = `Error: ${error.message}`;
-        $error.style.display = "block";
-      } finally {
-        $loading.style.display = "none";
-        $check.disabled = false;
+        console.error(`Error checking ${tokenSymbol} rewards:`, error);
+        gridEl.innerHTML = '<div class="warning-box">⚠️ Failed to load rewards data: ' + error.message + '</div>';
+        aggregateSectionEl.style.display = 'none';
+        apySectionEl.style.display = 'none';
       }
     }
 
-    $check.addEventListener("click", checkRewards);
-    $wallet.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") checkRewards();
+    async function checkRewards() {
+      const address = $('walletInput').value.trim();
+      
+      if (!ethers.utils.isAddress(address)) {
+        showError('Please enter a valid wallet address');
+        return;
+      }
+
+      currentAddress = address;
+      
+      const url = new URL(window.location.href);
+      url.searchParams.set('address', address);
+      window.history.replaceState({}, '', url.toString());
+
+      $('checkBtn').disabled = true;
+      $('error').style.display = 'none';
+      $('loading').style.display = 'block';
+      $('buttonGroup').style.display = 'none';
+      $('pmtSection').style.display = 'none';
+      $('pmbSection').style.display = 'none';
+
+      updateLoadingStep('Connecting to PulseChain...', 'active');
+
+      try {
+        const provider = await getProvider();
+        updateLoadingStep('Connecting to PulseChain...', 'complete');
+
+        updateLoadingStep('Checking PMT rewards...', 'active');
+        await checkTokenRewards(provider, address, PMT_CONTRACT, PMT_YIELD_TOKENS, 
+          $('pmtBalance'), $('pmtAggregateReflections'), $('pmtAggregateSection'), 
+          $('pmtRewardsGrid'), $('pmtApy'), $('pmtApySection'), $('pmtApyNote'), 
+          $('pmtHistory'), $('pmtLastUpdate'), 'PMT');
+        updateLoadingStep('Checking PMT rewards...', 'complete');
+
+        updateLoadingStep('Checking PMB rewards...', 'active');
+        await checkTokenRewards(provider, address, PMB_CONTRACT, PMB_YIELD_TOKENS,
+          $('pmbBalance'), $('pmbAggregateReflections'), $('pmbAggregateSection'),
+          $('pmbReflectionsGrid'), $('pmbApy'), $('pmbApySection'), $('pmbApyNote'),
+          $('pmbHistory'), $('pmbLastUpdate'), 'PMB');
+        updateLoadingStep('Checking PMB rewards...', 'complete');
+
+        $('pmtSection').style.display = 'block';
+        $('pmbSection').style.display = 'block';
+        $('buttonGroup').style.display = 'flex';
+
+        startAutoRefresh();
+
+      } catch (error) {
+        showError(error.message);
+        console.error(error);
+      } finally {
+        $('checkBtn').disabled = false;
+        $('loading').style.display = 'none';
+        $('loading').innerHTML = '';
+      }
+    }
+
+    // Event Listeners
+    $('checkBtn').addEventListener('click', checkRewards);
+    $('refreshBtn').addEventListener('click', refreshPrices);
+    $('shareBtn').addEventListener('click', shareResults);
+
+    $('walletInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        checkRewards();
+      }
     });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        stopAutoRefresh();
+      } else if (currentAddress) {
+        startAutoRefresh();
+      }
+    });
+
+    // Load from URL params if present
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressParam = urlParams.get('address');
+    if (addressParam && ethers.utils.isAddress(addressParam)) {
+      $('walletInput').value = addressParam;
+      setTimeout(() => checkRewards(), 500);
+    }
   })();
   </script>
 </body>
