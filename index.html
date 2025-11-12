@@ -980,22 +980,75 @@
 
       const url = `${window.location.origin}${window.location.pathname}?address=${address}`;
       
+      // Try native share first (mobile)
       if (navigator.share) {
         navigator.share({
           title: 'My PMT & PMB Rewards',
           text: 'Check out my token rewards!',
           url: url
-        }).catch(err => console.log('Share failed:', err));
-      } else {
-        // Fallback: copy to clipboard
-        navigator.clipboard.writeText(url).then(() => {
-          const originalText = $("shareBtn").textContent;
-          $("shareBtn").textContent = "✓ Link Copied!";
-          setTimeout(() => {
-            $("shareBtn").textContent = originalText;
-          }, 2000);
+        }).catch(err => {
+          console.log('Share failed, falling back to copy:', err);
+          fallbackCopyTextToClipboard(url);
         });
+      } else {
+        // Try modern clipboard API
+        if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(url).then(() => {
+            showCopySuccess();
+          }).catch(err => {
+            console.log('Clipboard API failed, using fallback:', err);
+            fallbackCopyTextToClipboard(url);
+          });
+        } else {
+          // Use fallback for non-HTTPS
+          fallbackCopyTextToClipboard(url);
+        }
       }
+    }
+
+    function fallbackCopyTextToClipboard(text) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.position = "fixed";
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.width = "2em";
+      textArea.style.height = "2em";
+      textArea.style.padding = "0";
+      textArea.style.border = "none";
+      textArea.style.outline = "none";
+      textArea.style.boxShadow = "none";
+      textArea.style.background = "transparent";
+      
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        if (successful) {
+          showCopySuccess();
+        } else {
+          // Last resort: show the URL in a prompt
+          prompt('Copy this link:', text);
+        }
+      } catch (err) {
+        console.error('Fallback copy failed:', err);
+        // Show in prompt as last resort
+        prompt('Copy this link:', text);
+      }
+      
+      document.body.removeChild(textArea);
+    }
+
+    function showCopySuccess() {
+      const originalText = $("shareBtn").textContent;
+      $("shareBtn").textContent = "✓ Link Copied!";
+      $("shareBtn").style.background = "linear-gradient(135deg, #10b981, #059669)";
+      setTimeout(() => {
+        $("shareBtn").textContent = originalText;
+        $("shareBtn").style.background = "";
+      }, 2000);
     }
 
     $("checkBtn").addEventListener("click", () => checkRewards(false));
