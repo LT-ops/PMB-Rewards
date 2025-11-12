@@ -477,7 +477,8 @@
         index: 0,
         addr: "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599",
         name: "WBTC",
-        color: "#f7931a"
+        color: "#f7931a",
+        pairAddr: "0x46e27ea3a035ffc9e6d6d56702ce3d208ff1e58c" // WBTC/WPLS pair on PulseX
       }
     ];
 
@@ -486,13 +487,15 @@
         index: 0,
         addr: "0xc10a4ed9b4042222d69ff0b374eddd47ed90fc1f",
         name: "PCOCK",
-        color: "#3b82f6"
+        color: "#3b82f6",
+        pairAddr: "0xc10a4ed9b4042222d69ff0b374eddd47ed90fc1f" // Use token addr for now
       },
       {
         index: 1,
         addr: "0xfde3255fb043ea55f9d8635c5e7ff18770a6a810",
         name: "PHEN",
-        color: "#8b5cf6"
+        color: "#8b5cf6",
+        pairAddr: "0xfde3255fb043ea55f9d8635c5e7ff18770a6a810" // Use token addr for now
       }
     ];
 
@@ -564,7 +567,7 @@
       throw new Error("All RPCs failed. Please try again later.");
     }
 
-    async function getDexPrice(tokenAddr, useCache = true) {
+    async function getDexPrice(tokenAddr, pairAddr, useCache = true) {
       const cacheKey = tokenAddr.toLowerCase();
       const now = Date.now();
       
@@ -574,16 +577,34 @@
         return priceCache[cacheKey];
       }
 
+      // Try pair address first for PulseChain tokens
+      const queryAddr = pairAddr || tokenAddr;
+
       try {
-        const response = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddr}`);
+        const response = await fetch(`https://api.dexscreener.com/latest/dex/pairs/pulsechain/${queryAddr}`);
         const data = await response.json();
-        if (data.pairs && data.pairs[0]) {
-          const price = parseFloat(data.pairs[0].priceUsd) || 0;
+        if (data.pair && data.pair.priceUsd) {
+          const price = parseFloat(data.pair.priceUsd) || 0;
           priceCache[cacheKey] = {
             price,
             timestamp: now,
             source: 'dexscreener'
           };
+          console.log(`Price for ${tokenAddr}: ${price}`);
+          return priceCache[cacheKey];
+        }
+        
+        // Fallback to token search
+        const tokenResponse = await fetch(`https://api.dexscreener.com/latest/dex/tokens/${tokenAddr}`);
+        const tokenData = await tokenResponse.json();
+        if (tokenData.pairs && tokenData.pairs[0]) {
+          const price = parseFloat(tokenData.pairs[0].priceUsd) || 0;
+          priceCache[cacheKey] = {
+            price,
+            timestamp: now,
+            source: 'dexscreener'
+          };
+          console.log(`Price for ${tokenAddr} (fallback): ${price}`);
           return priceCache[cacheKey];
         }
       } catch (e) {
@@ -724,7 +745,7 @@
           ]);
 
           const pendingFormatted = parseFloat(ethers.utils.formatUnits(pending, tokenDecimals));
-          const priceData = await getDexPrice(tokenAddr, !refreshPrices);
+          const priceData = await getDexPrice(tokenAddr, item.pairAddr, !refreshPrices);
           const usdValue = pendingFormatted * priceData.price;
           totalUsd += usdValue;
 
